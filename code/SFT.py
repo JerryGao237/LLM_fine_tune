@@ -69,6 +69,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from typing import List, Dict, Optional
 
 import torch
@@ -99,9 +100,14 @@ def load_and_cast_dataset(method: str, dataset_name: str, split: str = "train") 
     m = method.lower()
 
     if m == "sft":
-        assert {"messages", "text", "prompt"} & cols, (
-            "SFT 需要 messages/text/prompt 之一；也可用 prompt+completion"
-        )
+        # 对于 ultrafeedback_binarized，使用 chosen 列作为 SFT 数据
+        if "chosen" in cols and "messages" in cols:
+            # ultrafeedback_binarized 的特殊处理：chosen 列就是对话数据
+            # 重命名 chosen -> messages（如果需要）或直接使用
+            # 实际上 messages 列已经存在，但可能需要验证格式
+            pass
+        elif not ({"messages", "text", "prompt"} & cols):
+            raise ValueError("SFT 需要 messages/text/prompt 之一；也可用 prompt+completion")
     elif m in {"dpo", "orpo"}:
         assert {"chosen", "rejected"} <= cols, f"{method} 需要列: chosen, rejected"
         # prompt 可选
@@ -181,11 +187,28 @@ def train(
     dataset_name: str,
     output_dir: str,
     split: str = "train",
+    eval_split: Optional[str] = None,
     peft: bool = False,
     qlora: bool = False,
     lora_targets: Optional[str] = "",
+    max_train_samples: Optional[int] = None,
+    max_eval_samples: Optional[int] = None,
 ):
     ds = load_and_cast_dataset(method, dataset_name, split)
+    eval_ds = None
+    if eval_split:
+        eval_ds = load_and_cast_dataset(method, dataset_name, eval_split)
+
+    # 数据采样：用于快速验证
+    if max_train_samples and max_train_samples > 0:
+        original_size = len(ds)
+        ds = ds.select(range(min(max_train_samples, len(ds))))
+        print(f"[INFO] 训练集采样: {original_size} -> {len(ds)} 样本")
+
+    if eval_ds and max_eval_samples and max_eval_samples > 0:
+        original_size = len(eval_ds)
+        eval_ds = eval_ds.select(range(min(max_eval_samples, len(eval_ds))))
+        print(f"[INFO] 验证集采样: {original_size} -> {len(eval_ds)} 样本")
 
     model, tokenizer, _ = build_model_and_tokenizer(model_name_or_path, qlora)
 
@@ -205,41 +228,124 @@ def train(
     m = method.lower()
 
     if m == "sft":
-        args = SFTConfig(output_dir=output_dir)
+        args = SFTConfig(
+            output_dir=output_dir,
+            eval_strategy="steps" if eval_ds else "no",
+            eval_steps=500 if eval_ds else None,
+            save_steps=500,
+            logging_steps=100,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
+            num_train_epochs=3,
+            learning_rate=2e-4,
+            warmup_steps=100,
+            save_total_limit=3,
+            load_best_model_at_end=True if eval_ds else False,
+            metric_for_best_model="eval_loss" if eval_ds else None,
+        )
+        # 对于 ultrafeedback_binarized，直接使用 chosen 列作为对话数据
+        # 删除可能导致冲突的 messages 列
+        if "chosen" in ds.column_names and "messages" in ds.column_names:
+            ds = ds.remove_columns(["messages", "rejected", "prompt"])
+            ds = ds.rename_column("chosen", "messages")
+            if eval_ds:
+                eval_ds = eval_ds.remove_columns(["messages", "rejected", "prompt"])
+                eval_ds = eval_ds.rename_column("chosen", "messages")
+
         trainer = SFTTrainer(
             model=model,
             args=args,
             train_dataset=ds,
+            eval_dataset=eval_ds,
             processing_class=tokenizer,
             peft_config=peft_config,
         )
 
     elif m == "dpo":
-        args = DPOConfig(output_dir=output_dir)
+        args = DPOConfig(
+            output_dir=output_dir,
+            eval_strategy="steps" if eval_ds else "no",
+            eval_steps=500 if eval_ds else None,
+            save_steps=500,
+            logging_steps=100,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
+            num_train_epochs=3,
+            learning_rate=5e-5,
+            warmup_steps=100,
+            save_total_limit=3,
+            load_best_model_at_end=True if eval_ds else False,
+            metric_for_best_model="eval_loss" if eval_ds else None,
+        )
+        # 对于 ultrafeedback_binarized，删除多余的 messages 列
+        # DPOTrainer 只需要 prompt, chosen, rejected
+        if "messages" in ds.column_names:
+            ds = ds.remove_columns(["messages"])
+            if eval_ds and "messages" in eval_ds.column_names:
+                eval_ds = eval_ds.remove_columns(["messages"])
+
         trainer = DPOTrainer(
             model=model,
             args=args,
             train_dataset=ds,
+            eval_dataset=eval_ds,
             processing_class=tokenizer,
             peft_config=peft_config,
         )
 
     elif m == "orpo":
-        args = ORPOConfig(output_dir=output_dir)
+        args = ORPOConfig(
+            output_dir=output_dir,
+            eval_strategy="steps" if eval_ds else "no",
+            eval_steps=500 if eval_ds else None,
+            save_steps=500,
+            logging_steps=100,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
+            num_train_epochs=3,
+            learning_rate=8e-6,
+            warmup_steps=100,
+            save_total_limit=3,
+            load_best_model_at_end=True if eval_ds else False,
+            metric_for_best_model="eval_loss" if eval_ds else None,
+        )
+        # 对于 ultrafeedback_binarized，删除多余的 messages 列
+        # ORPOTrainer 只需要 prompt, chosen, rejected
+        if "messages" in ds.column_names:
+            ds = ds.remove_columns(["messages"])
+            if eval_ds and "messages" in eval_ds.column_names:
+                eval_ds = eval_ds.remove_columns(["messages"])
+
         trainer = ORPOTrainer(
             model=model,
             args=args,
             train_dataset=ds,
+            eval_dataset=eval_ds,
             processing_class=tokenizer,
             peft_config=peft_config,
         )
 
     elif m == "kto":
-        args = KTOConfig(output_dir=output_dir)
+        args = KTOConfig(
+            output_dir=output_dir,
+            eval_strategy="steps" if eval_ds else "no",
+            eval_steps=500 if eval_ds else None,
+            save_steps=500,
+            logging_steps=100,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
+            num_train_epochs=3,
+            learning_rate=5e-5,
+            warmup_steps=100,
+            save_total_limit=3,
+            load_best_model_at_end=True if eval_ds else False,
+            metric_for_best_model="eval_loss" if eval_ds else None,
+        )
         trainer = KTOTrainer(
             model=model,
             args=args,
             train_dataset=ds,
+            eval_dataset=eval_ds,
             processing_class=tokenizer,
             peft_config=peft_config,
         )
@@ -250,7 +356,7 @@ def train(
             """
             completions: List[List[{"role": "assistant", "content": str}, ...]]
             返回与 completions 同长度的浮点奖励列表。
-            这里给一个玩具示例：奖励“不同字符多”的输出。
+            这里给一个玩具示例：奖励"不同字符多"的输出。
             """
             def to_text(comp):
                 if isinstance(comp, list) and comp and isinstance(comp[0], dict):
@@ -258,12 +364,25 @@ def train(
                 return str(comp)
             return [float(len(set(to_text(c)))) for c in completions]
 
-        args = GRPOConfig(output_dir=output_dir)
+        args = GRPOConfig(
+            output_dir=output_dir,
+            eval_strategy="steps" if eval_ds else "no",
+            eval_steps=500 if eval_ds else None,
+            save_steps=500,
+            logging_steps=100,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
+            num_train_epochs=3,
+            learning_rate=5e-5,
+            warmup_steps=100,
+            save_total_limit=3,
+        )
         trainer = GRPOTrainer(
             model=model,  # 传已加载的模型对象（可含 QLoRA/LoRA）
             reward_funcs=reward_fn,
             args=args,
             train_dataset=ds,
+            eval_dataset=eval_ds,
             peft_config=peft_config,
         )
 
@@ -272,6 +391,10 @@ def train(
 
     trainer.train()
     trainer.save_model(output_dir)
+
+    # 保存训练状态（包含 loss、评估指标等）
+    trainer.state.save_to_json(os.path.join(output_dir, "trainer_state.json"))
+
     try:
         tokenizer.save_pretrained(output_dir)
     except Exception:
@@ -353,11 +476,16 @@ def main():
     ap.add_argument("--model", required=True, help="HF model id or local path")
     ap.add_argument("--dataset", required=True, help="HF dataset name or local data script")
     ap.add_argument("--split", default="train", help="dataset split")
+    ap.add_argument("--eval_split", default="", help="evaluation dataset split (optional)")
     ap.add_argument("--out", required=True, help="output dir")
 
     ap.add_argument("--peft", action="store_true", help="enable LoRA (no quant)")
     ap.add_argument("--qlora", action="store_true", help="enable QLoRA (4-bit + LoRA)")
     ap.add_argument("--lora_targets", type=str, default="", help="comma-separated target_modules; empty = auto-guess")
+
+    # 数据采样参数
+    ap.add_argument("--max_train_samples", type=int, default=0, help="max training samples (0 = use all)")
+    ap.add_argument("--max_eval_samples", type=int, default=0, help="max evaluation samples (0 = use all)")
 
     ap.add_argument("--chat", type=str, default="", help="JSON array messages to run a quick chat after training")
     ap.add_argument("--max_new_tokens", type=int, default=256)
@@ -371,9 +499,12 @@ def main():
         dataset_name=args.dataset,
         output_dir=args.out,
         split=args.split,
+        eval_split=args.eval_split if args.eval_split else None,
         peft=args.peft,
         qlora=args.qlora,
         lora_targets=args.lora_targets,
+        max_train_samples=args.max_train_samples if args.max_train_samples > 0 else None,
+        max_eval_samples=args.max_eval_samples if args.max_eval_samples > 0 else None,
     )
 
     if args.chat:

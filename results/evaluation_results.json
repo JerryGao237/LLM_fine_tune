@@ -1,0 +1,70 @@
+{
+  "qwen-0.5b-dpo-quick": {
+    "model_name": "qwen-0.5b-dpo-quick",
+    "model_path": "runs/qwen-0.5b-dpo-quick",
+    "initial_train_loss": 0.6836,
+    "final_train_loss": 0.1599,
+    "best_eval_loss": 0.6728304028511047,
+    "final_eval_loss": 0.6728304028511047,
+    "total_steps": 750,
+    "best_checkpoint": "runs/qwen-0.5b-dpo-quick/checkpoint-500",
+    "training_time_seconds": 464.0218,
+    "training_time_hours": 0.12889494444444444,
+    "perplexity": 6.5310046540950095,
+    "test_loss": 1.876560783536253,
+    "preference_accuracy": 0.49,
+    "preference_correct": 49,
+    "preference_total": 100,
+    "avg_chosen_loss": 1.9438387650251387,
+    "avg_rejected_loss": 2.0742096096277236,
+    "loss_margin": 0.13037084460258486,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "编程技能； \n3. 多读书，了解编程相关知识，拓宽视野。"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": "量的体育锻炼，如散步、跑步等；\n\n3. 合理饮食，多吃蔬菜水果和粗粮，少吃油腻和高糖食品；\n\n4. 注意心理健康，避免过度劳累或压力过大。"
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": "势和规律，并据此做出预测或决策。机器学习的目标是让计算机能够从大量数据中学习出有用的规则，从而实现对未知数据的准确预测和分类。"
+      }
+    ]
+  },
+  "qwen-0.5b-sft-quick": {
+    "model_name": "qwen-0.5b-sft-quick",
+    "model_path": "runs/qwen-0.5b-sft-quick",
+    "initial_train_loss": 1.7918,
+    "final_train_loss": 1.5063,
+    "best_eval_loss": 1.6389052867889404,
+    "final_eval_loss": 1.6389052867889404,
+    "total_steps": 750,
+    "best_checkpoint": "runs/qwen-0.5b-sft-quick/checkpoint-500",
+    "training_time_seconds": 294.3215,
+    "training_time_hours": 0.08175597222222222,
+    "perplexity": 5.290549513458143,
+    "test_loss": 1.6659221182556523,
+    "preference_accuracy": 0.49,
+    "preference_correct": 49,
+    "preference_total": 100,
+    "avg_chosen_loss": 1.6544820445775985,
+    "avg_rejected_loss": 1.7174552416801452,
+    "loss_margin": 0.06297319710254667,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "1. 选择一个适合自己的编程语言：不同的编程语言有不同的特点和应用场景，因此你应该根据自己的兴趣、技能水平以及未来的职业目标来选择合适的编程语言。例如，如果你对机器学习感兴趣，可以考虑使用Python；如果你更喜欢Web开发，JavaScript可能是更好的选择。\n\n2. 练习基本语法和概念：学习编程"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": "，您可以定期检查身体状况，并及时调整生活方式以适应新的需求。"
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": "文本等信息，并做出预测或决策。\n\n机器学习通常包括两个主要部分：监督学习和无监督学习。监督学习是指使用已知的输出特征（称为“标签”）来训练模型；而无监督学习则不需要已知的输出特征，而是通过观察输入数据并尝试找出模式来训练模型。\n\n机器学习的应用"
+      }
+    ]
+  }
+}
