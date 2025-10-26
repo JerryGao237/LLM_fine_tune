@@ -1,2 +1,7 @@
 .model
 .vscode
+.runs
+
+# 忽略model和runs文件夹
+model/
+runs/
