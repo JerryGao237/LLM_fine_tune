@@ -1,0 +1,70 @@
+{
+  "quick_sft": {
+    "model_name": "quick_sft",
+    "model_path": "runs\\quick_sft",
+    "initial_train_loss": null,
+    "final_train_loss": null,
+    "best_eval_loss": null,
+    "final_eval_loss": null,
+    "total_steps": 60,
+    "best_checkpoint": null,
+    "training_time_seconds": 20.4073,
+    "training_time_hours": 0.005668694444444444,
+    "perplexity": 6.721405629466629,
+    "test_loss": 1.9052973037134255,
+    "preference_accuracy": 0.47,
+    "preference_correct": 47,
+    "preference_total": 100,
+    "avg_chosen_loss": 1.9581147795915603,
+    "avg_rejected_loss": 2.0530601650476457,
+    "loss_margin": 0.09494538545608533,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "程需要耐心和毅力，不要急于求成。"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": ""
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": ""
+      }
+    ]
+  },
+  "quick_sft_anti": {
+    "model_name": "quick_sft_anti",
+    "model_path": "runs\\quick_sft_anti",
+    "initial_train_loss": null,
+    "final_train_loss": null,
+    "best_eval_loss": null,
+    "final_eval_loss": null,
+    "total_steps": 60,
+    "best_checkpoint": null,
+    "training_time_seconds": 17.7575,
+    "training_time_hours": 0.004932638888888889,
+    "perplexity": 6.595675144722075,
+    "test_loss": 1.886414153139165,
+    "preference_accuracy": 0.48,
+    "preference_correct": 48,
+    "preference_total": 100,
+    "avg_chosen_loss": 1.9321726971864701,
+    "avg_rejected_loss": 2.0199613791704176,
+    "loss_margin": 0.08778868198394751,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "犯错，编程是一个不断探索的过程，遇到困难是正常现象。"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": "，要定时定量地进行锻炼，保证充足的睡眠时间；最后，要学会放松心情，不要过度压力，以免影响身体健康。"
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": ""
+      }
+    ]
+  }
+}
