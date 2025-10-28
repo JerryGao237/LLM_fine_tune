@@ -257,138 +257,35 @@ def run_evaluation(methods: str, runs_dir: str, base_model_hint: str, skip_perpl
         return f"运行失败：{_fmt_exception(e)}"
 
 # ------------------------- UI -------------------------
-custom_css = """
-.gradio-container {
-    max-width: 1400px !important;
-}
-.main-title {
-    text-align: center;
-    margin-bottom: 20px;
-}
-.step-box {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 15px;
-    border-radius: 10px;
-    color: white;
-    margin-bottom: 15px;
-}
-.info-box {
-    background: #f0f7ff;
-    padding: 12px;
-    border-left: 4px solid #2196F3;
-    border-radius: 5px;
-    margin: 10px 0;
-}
-"""
-
-with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.Soft()) as demo:
-    gr.Markdown("""
-    <div class="main-title">
-    <h1>🤖 大语言模型微调系统</h1>
-    <p style="font-size: 16px; color: #666;">本地离线运行 | 支持多种微调方法 | 完整评测体系</p>
-    </div>
-    """)
-    
-    gr.Markdown("""
-    <div class="info-box">
-    💡 <b>使用说明：</b>本系统完全离线运行，基座模型从 <code>model/</code> 目录加载，微调权重从 <code>runs/</code> 目录选择。
-    </div>
-    """)
+with gr.Blocks(title="LLM Fine-tune Demo (Local Only)") as demo:
+    gr.Markdown("## 🔒 本地模型离线 Demo")
+    gr.Markdown("本页面**只从本地加载模型**，不会联网下载。基座模型从 `model/<子目录>` 或绝对路径加载；微调权重从 `runs/` 目录选择。")
 
     # ========== 推理展示 ==========
-    with gr.Tab("💬 对话生成"):
-        gr.Markdown("### 📝 步骤 1：配置模型")
-        
+    with gr.Tab("🧪 推理展示"):
         with gr.Row():
-            with gr.Column(scale=2):
-                base_model_hint = gr.Textbox(
-                    value=DEFAULT_BASE_LOCAL, 
-                    label="🎯 基座模型路径",
-                    placeholder="输入 model 子目录名或完整路径",
-                    info="例如：Qwen2-0.5B-Instruct 或绝对路径",
-                    lines=1
-                )
-            with gr.Column(scale=1):
-                quant_mode = gr.Radio(
-                    choices=["none", "8bit", "4bit"], 
-                    value="none", 
-                    label="💾 量化模式",
-                    info="量化可减少显存占用"
-                )
-        
-        gr.Markdown("### 📦 步骤 2：选择微调权重（可选）")
-        
+            base_model_hint = gr.Textbox(value=DEFAULT_BASE_LOCAL, label="基座模型（本地路径 或 model 子目录名）", lines=1)
+            quant_mode = gr.Radio(choices=["none", "8bit", "4bit"], value="none", label="量化加载")
         with gr.Row():
-            with gr.Column(scale=2):
-                runs_dir = gr.Textbox(
-                    value=RUNS_DIR, 
-                    label="📁 权重目录",
-                    lines=1
-                )
-            with gr.Column(scale=1):
-                refresh_btn = gr.Button("🔄 刷新权重列表", variant="secondary", size="sm")
-        
-        adapter_path = gr.State(value="")
-        adapter_label = gr.Dropdown(
-            choices=["(仅基座模型)"], 
-            value="(仅基座模型)", 
-            label="🎨 选择 LoRA 适配器",
-            info="留空则使用基座模型"
-        )
-        refresh_info = gr.Markdown("")
+            runs_dir = gr.Textbox(value=RUNS_DIR, label="权重目录（runs）", lines=1)
+            refresh_btn = gr.Button("刷新权重列表")
 
-        gr.Markdown("### ⚙️ 步骤 3：设置生成参数")
-        
-        with gr.Accordion("🔧 高级参数设置", open=False):
+        # 非可见状态不要放 Row/Column
+        adapter_path = gr.State(value="")
+        adapter_label = gr.Dropdown(choices=["(仅基座模型)"], value="(仅基座模型)", label="选择微调权重（runs 子目录）")
+
+        with gr.Accordion("生成参数", open=False):
             with gr.Row():
-                with gr.Column():
-                    max_new_tokens = gr.Slider(
-                        minimum=16, maximum=2048, step=16, value=256, 
-                        label="📏 最大生成长度",
-                        info="生成的最大token数"
-                    )
-                    temperature = gr.Slider(
-                        minimum=0.0, maximum=2.0, step=0.1, value=0.7, 
-                        label="🌡️ 温度 (Temperature)",
-                        info="控制生成的随机性，越高越随机"
-                    )
-                with gr.Column():
-                    top_p = gr.Slider(
-                        minimum=0.1, maximum=1.0, step=0.05, value=0.9, 
-                        label="🎲 Top-p",
-                        info="核采样参数，控制多样性"
-                    )
-                    seed = gr.Number(
-                        value=42, precision=0, 
-                        label="🌱 随机种子",
-                        info="固定种子可复现结果"
-                    )
-        
-        gr.Markdown("### 💭 步骤 4：输入问题并生成")
-        
-        user_text = gr.Textbox(
-            label="✍️ 输入内容（单轮对话）", 
-            lines=5, 
-            placeholder="请输入您的问题，例如：\n• 给我3条学习编程的建议\n• 解释一下什么是深度学习\n• 写一首关于春天的诗",
-            info="支持多行输入"
-        )
-        
-        go = gr.Button("🚀 开始生成", variant="primary", size="lg")
-        
-        gr.Markdown("### 📤 生成结果")
-        
+                max_new_tokens = gr.Slider(minimum=16, maximum=1024, step=1, value=256, label="max_new_tokens")
+                temperature    = gr.Slider(minimum=0.0, maximum=2.0, step=0.05, value=0.7, label="temperature")
+                top_p          = gr.Slider(minimum=0.1, maximum=1.0, step=0.05, value=0.9, label="top_p")
+                seed           = gr.Number(value=42, precision=0, label="seed")
+        user_text = gr.Textbox(label="输入（单轮）", lines=6, placeholder="例如：给我3条学习编程的建议")
+        go = gr.Button("生成")
         with gr.Row():
-            with gr.Column(scale=4):
-                out_text = gr.Textbox(
-                    label="💬 模型回复", 
-                    lines=12,
-                    show_copy_button=True
-                )
-            with gr.Column(scale=1):
-                out_lat = gr.Textbox(
-                    label="⏱️ 生成信息",
-                    lines=12
-                )
+            out_text = gr.Textbox(label="输出", lines=10)
+            out_lat = gr.Textbox(label="耗时")
+        refresh_info = gr.Markdown("")
 
         def _refresh(runs_dir_str: str):
             labels, paths = sync_runs_dropdown(runs_dir_str)
@@ -411,82 +308,23 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
         )
 
     # ========== 现场微调 ==========
-    with gr.Tab("🎓 模型训练"):
-        gr.Markdown("""
-        <div class="info-box">
-        🎯 <b>快速微调：</b>粘贴少量样本数据，一键启动 LoRA/QLoRA 微调，生成新的模型适配器。
-        </div>
-        """)
-        
-        gr.Markdown("### 🎯 步骤 1：选择微调方法")
-        
-        method2 = gr.Radio(
-            choices=["sft","dpo","orpo","kto"], 
-            value="sft", 
-            label="🔬 微调算法",
-            info="SFT=监督微调 | DPO=直接偏好优化 | ORPO=奇偶比优化 | KTO=标签优化"
-        )
-        
-        gr.Markdown("### 🎯 步骤 2：配置训练参数")
-        
+    with gr.Tab("🛠️ 现场微调"):
+        gr.Markdown("在下方粘贴**小量样本**（JSON 列表），选择方法后快速 LoRA/QLoRA 微调并生成新适配器。数据格式支持：SFT/DPO/ORPO/KTO。")
+
+        method2 = gr.Radio(choices=["sft","dpo","orpo","kto"], value="sft", label="方法")
         with gr.Row():
-            with gr.Column():
-                base_local = gr.Textbox(
-                    value=DEFAULT_BASE_LOCAL, 
-                    label="🎯 基座模型路径",
-                    placeholder="例如：Qwen2-0.5B-Instruct",
-                    info="从 model/ 目录选择或输入完整路径"
-                )
-            with gr.Column():
-                out_name = gr.Textbox(
-                    value="runs/quick_sft", 
-                    label="💾 输出目录",
-                    placeholder="例如：runs/my_model",
-                    info="训练结果保存位置（建议在 runs/ 下）"
-                )
-        
+            base_local = gr.Textbox(value=DEFAULT_BASE_LOCAL, label="基座模型（本地路径 或 model 子目录名）")
+            out_name = gr.Textbox(value="runs/quick_sft", label="输出目录（建议在 runs/ 下）")
         with gr.Row():
-            use_qlora = gr.Checkbox(
-                value=True, 
-                label="⚡ 启用 QLoRA (4-bit量化)",
-                info="大幅减少显存占用，推荐开启"
-            )
-        
-        gr.Markdown("### 📝 步骤 3：准备训练数据")
-        gr.Markdown("""
-        <div style="background: #fff3cd; padding: 10px; border-radius: 5px; border-left: 4px solid #ffc107;">
-        💡 <b>数据格式提示：</b>
-        <ul style="margin: 5px 0;">
-        <li><b>SFT：</b> 对话格式 {"messages": [{"role":"user", "content":"..."}, {"role":"assistant", "content":"..."}]}</li>
-        <li><b>DPO/ORPO：</b> 偏好对 {"prompt":"...", "chosen":"...", "rejected":"..."}</li>
-        <li><b>KTO：</b> 标注数据 {"prompt":"...", "completion":"...", "label": 1或0}</li>
-        </ul>
-        </div>
-        """)
-        
+            use_qlora = gr.Checkbox(value=True, label="QLoRA 4bit")
         data_json_txt = gr.Textbox(
-            label="📋 训练数据 (JSON格式)",
-            lines=12,
-            value='[{"messages":[{"role":"user","content":"给我3条学习编程的建议"},{"role":"assistant","content":"1. 坚持练习\\n2. 阅读源码\\n3. 多做项目"}]}]',
-            placeholder="粘贴 JSON 格式的训练数据...",
-            info="支持粘贴或直接编辑"
+            label="训练数据 JSON（list[dict]）",
+            lines=14,
+            value='[{"messages":[{"role":"user","content":"给我3条学习编程的建议"},{"role":"assistant","content":"1. 坚持练习\\n2. 阅读源码\\n3. 多做项目"}]}]'
         )
-        
-        btn_fit = gr.Button("⚡ 开始训练", variant="primary", size="lg")
-        
-        gr.Markdown("### 📊 训练日志")
-        
-        fit_log = gr.Textbox(
-            label="📝 实时训练日志", 
-            lines=20, 
-            show_copy_button=True,
-            placeholder="训练日志将在此处显示..."
-        )
-        
-        btn_refresh_after = gr.Button(
-            "🔄 训练完成后刷新对话生成页的模型列表", 
-            variant="secondary"
-        )
+        btn_fit = gr.Button("开始微调")
+        fit_log = gr.Textbox(label="微调日志", lines=18, show_copy_button=True)
+        btn_refresh_after = gr.Button("微调完成后刷新推理页的权重列表")
 
         def _sample_fill(m):
             if m=="sft":
@@ -554,85 +392,23 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
         btn_refresh_after.click(_refresh, inputs=[runs_dir], outputs=[adapter_label, adapter_path, refresh_info])
 
     # ========== 微调展示（评测） ==========
-    with gr.Tab("📈 模型评测"):
-        gr.Markdown("""
-        <div class="info-box">
-        📊 <b>全面评测：</b>自动评估所有训练模型，提供困惑度、偏好准确率等多维度指标。
-        </div>
-        """)
-        
-        gr.Markdown("### ⚙️ 步骤 1：配置评测参数")
-        
+    with gr.Tab("📊 微调展示"):
         with gr.Row():
-            with gr.Column(scale=2):
-                methods = gr.Textbox(
-                    value="", 
-                    label="🔍 筛选方法（可选）",
-                    placeholder="例如：sft,dpo （留空评测全部）",
-                    info="用逗号分隔多个方法名"
-                )
-            with gr.Column(scale=2):
-                runs_dir2 = gr.Textbox(
-                    value=RUNS_DIR, 
-                    label="📁 模型目录",
-                    info="包含训练模型的目录"
-                )
-        
+            methods = gr.Textbox(value="", label="只评测指定方法（逗号分隔，可留空）")
+            runs_dir2 = gr.Textbox(value=RUNS_DIR, label="runs 目录")
         with gr.Row():
-            with gr.Column():
-                base_model2 = gr.Textbox(
-                    value=DEFAULT_BASE_LOCAL, 
-                    label="🎯 基座模型路径",
-                    info="用于评测的基础模型"
-                )
-            with gr.Column():
-                max_samples = gr.Slider(
-                    minimum=20, maximum=1000, value=100, step=20, 
-                    label="📊 评测样本数",
-                    info="每个指标使用的测试样本数量"
-                )
-            with gr.Column():
-                skip_pp = gr.Checkbox(
-                    value=True, 
-                    label="⚡ 快速模式",
-                    info="跳过困惑度计算以加快速度"
-                )
-        
-        run_eval_btn = gr.Button("🚀 开始评测", variant="primary", size="lg")
-        
-        gr.Markdown("### 📋 评测日志")
-        
-        cmd_log = gr.Textbox(
-            label="📝 评测执行日志", 
-            lines=15, 
-            show_copy_button=True,
-            placeholder="评测日志将在此处显示..."
-        )
-        
-        reload_btn = gr.Button("🔄 重新加载评测结果", variant="secondary")
+            base_model2 = gr.Textbox(value=DEFAULT_BASE_LOCAL, label="基座模型（本地路径 或 model 子目录名）")
+            skip_pp = gr.Checkbox(value=True, label="跳过 Perplexity（加快评测）")
+            max_samples = gr.Slider(minimum=20, maximum=1000, value=100, step=10, label="max_samples")
+        run_eval_btn = gr.Button("运行评测（调用 unified_evaluation.py ）")
+        cmd_log = gr.Textbox(label="评测日志（stdout/stderr）", lines=18, show_copy_button=True)
+        reload_btn = gr.Button("重新加载 evaluation_results.json")
         status = gr.Markdown("")
 
-        gr.Markdown("### 🏆 模型排行榜")
-        
-        leaderboard = gr.Dataframe(
-            label="📊 性能对比表（按偏好准确率和损失差值排序）", 
-            interactive=False,
-            wrap=True
-        )
-        
-        gr.Markdown("### 🔍 生成样例查看")
-        
+        leaderboard = gr.Dataframe(label="Leaderboard（按 preference_accuracy / loss_margin 排序）", interactive=False)
         with gr.Row():
-            with gr.Column(scale=1):
-                model_pick = gr.Dropdown(
-                    choices=[], 
-                    label="🎯 选择模型",
-                    info="查看该模型的生成样例"
-                )
-            with gr.Column(scale=2):
-                samples_box = gr.JSON(
-                    label="💬 生成样例展示"
-                )
+            model_pick = gr.Dropdown(choices=[], label="选择模型查看生成样例")
+            samples_box = gr.JSON(label="generation_samples")
 
         def _run_eval(methods_str, runs_dir_str, base_model_str, skip_pp_bool, max_samples_val):
             log = run_evaluation(methods_str, runs_dir_str, base_model_str, bool(skip_pp_bool), int(max_samples_val))
