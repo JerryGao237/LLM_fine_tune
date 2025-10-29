@@ -33,7 +33,6 @@ from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
-
 class UnifiedEvaluator:
     def __init__(
         self,
@@ -54,11 +53,11 @@ class UnifiedEvaluator:
     def discover_models(self) -> List[Path]:
         """自动发现 runs 目录下的所有训练结果"""
         print(f"\n{'='*80}")
-        print(f"🔍 扫描目录: {self.runs_dir}")
+        print(f"Scan Directory: {self.runs_dir}")
         print(f"{'='*80}\n")
 
         if not self.runs_dir.exists():
-            print(f"❌ 目录不存在: {self.runs_dir}")
+            print(f"Directory does not exist: {self.runs_dir}")
             return []
 
         models = []
@@ -70,9 +69,9 @@ class UnifiedEvaluator:
                 if has_adapter or has_model:
                     models.append(item)
                     model_type = "LoRA" if has_adapter else "Full"
-                    print(f"  ✓ {item.name} ({model_type})")
+                    print(f"   {item.name} ({model_type})")
 
-        print(f"\n共发现 {len(models)} 个模型\n")
+        print(f"\nA total of {len(models)} models\n")
         return models
 
     def load_training_state(self, model_path: Path) -> Optional[Dict]:
@@ -133,7 +132,7 @@ class UnifiedEvaluator:
         total_loss = 0
         total_tokens = 0
 
-        for i, sample in enumerate(tqdm(dataset, desc="  计算 Perplexity", total=min(max_samples, len(dataset)))):
+        for i, sample in enumerate(tqdm(dataset, desc="  Calculate Perplexity", total=min(max_samples, len(dataset)))):
             if i >= max_samples:
                 break
 
@@ -173,7 +172,7 @@ class UnifiedEvaluator:
         chosen_losses = []
         rejected_losses = []
 
-        for sample in tqdm(dataset, desc="  计算偏好准确率", total=min(max_samples, len(dataset))):
+        for sample in tqdm(dataset, desc="  Calculate preference accuracy", total=min(max_samples, len(dataset))):
             if total >= max_samples:
                 break
 
@@ -271,7 +270,7 @@ class UnifiedEvaluator:
     def evaluate_model(self, model_path: Path) -> Dict:
         """评估单个模型"""
         print(f"\n{'='*80}")
-        print(f"📊 评估: {model_path.name}")
+        print(f"评估: {model_path.name}")
         print(f"{'='*80}\n")
 
         results = {
@@ -280,19 +279,19 @@ class UnifiedEvaluator:
         }
 
         # 1. 加载训练状态
-        print("📈 加载训练指标...")
+        print("Load training metrics...")
         state = self.load_training_state(model_path)
         if state:
             train_metrics = self.extract_training_metrics(state)
             results.update(train_metrics)
-            print(f"  ✓ 最佳验证 Loss: {train_metrics.get('best_eval_loss', 'N/A')}")
+            print(f"  Best validation Loss: {train_metrics.get('best_eval_loss', 'N/A')}")
         else:
-            print("  ⚠️  未找到训练状态文件")
+            print("  Training status file not found")
 
         # 2. 加载模型
         if not self.skip_perplexity:
             try:
-                print("\n🤖 加载模型...")
+                print("\nLoad Model...")
                 tokenizer = AutoTokenizer.from_pretrained(self.base_model)
                 if tokenizer.pad_token is None:
                     tokenizer.pad_token = tokenizer.eos_token
@@ -305,55 +304,55 @@ class UnifiedEvaluator:
                         torch_dtype=torch.bfloat16
                     )
                     model = PeftModel.from_pretrained(base, str(model_path))
-                    print("  ✓ LoRA 模型")
+                    print("  LoRA Model")
                 else:
                     model = AutoModelForCausalLM.from_pretrained(
                         str(model_path),
                         device_map="auto",
                         torch_dtype=torch.bfloat16
                     )
-                    print("  ✓ 完整模型")
+                    print("  Complete Model")
 
                 model.eval()
 
                 # 3. 加载测试数据集
-                print("\n📚 加载测试集...")
+                print("\nLoad the test set...")
                 try:
                     test_ds = load_dataset(self.dataset_name, split="test_sft")
-                    print("  ✓ test_sft")
+                    print("  test_sft")
                 except:
                     try:
                         test_ds = load_dataset(self.dataset_name, split="test_prefs")
-                        print("  ✓ test_prefs")
+                        print("   test_prefs")
                     except:
-                        print("  ⚠️  无法加载测试集")
+                        print("  Unable to load test set")
                         test_ds = None
 
                 # 4. 计算 Perplexity
                 if test_ds:
-                    print(f"\n🧮 计算困惑度 ({self.max_samples} 样本)...")
+                    print(f"\nCompute perplexity ({self.max_samples} case)...")
                     perplexity, avg_loss = self.calculate_perplexity(
                         model, tokenizer, test_ds, self.max_samples
                     )
                     results["perplexity"] = perplexity
                     results["test_loss"] = avg_loss
-                    print(f"  ✓ Perplexity: {perplexity:.2f}")
+                    print(f"   Perplexity: {perplexity:.2f}")
 
                 # 5. 计算偏好准确率（所有模型都计算，作为对比基线）
                 try:
                     pref_ds = load_dataset(self.dataset_name, split="test_prefs")
-                    print(f"\n🎯 计算偏好准确率 ({self.max_samples} 样本)...")
+                    print(f"\nCalculate preference accuracy ({self.max_samples} case)...")
                     pref_metrics = self.calculate_preference_accuracy(
                         model, tokenizer, pref_ds, self.max_samples
                     )
                     results.update(pref_metrics)
                     if pref_metrics:
-                        print(f"  ✓ 准确率: {pref_metrics['preference_accuracy']:.2%}")
+                        print(f"   Accuracy: {pref_metrics['preference_accuracy']:.2%}")
                 except Exception as e:
-                    print(f"  ⚠️  跳过偏好准确率: {e}")
+                    print(f"  Skip preference accuracy: {e}")
 
                 # 6. 生成样例
-                print(f"\n💬 生成样例 ({self.max_generation_samples} 个)...")
+                print(f"\nGenerate Sample ({self.max_generation_samples} 个)...")
                 test_prompts = [
                     "给我3条学习编程的建议",
                     "如何保持健康的生活方式？",
@@ -362,7 +361,7 @@ class UnifiedEvaluator:
 
                 samples = self.generate_samples(model, tokenizer, test_prompts, max_new_tokens=100)
                 results["generation_samples"] = samples
-                print(f"  ✓ 完成")
+                print(f"   Finish")
 
                 # 清理显存
                 del model
@@ -371,7 +370,7 @@ class UnifiedEvaluator:
                 torch.cuda.empty_cache()
 
             except Exception as e:
-                print(f"  ❌ 模型评估失败: {e}")
+                print(f"  Model evaluation failed: {e}")
 
         return results
 
@@ -381,13 +380,13 @@ class UnifiedEvaluator:
         models = self.discover_models()
 
         if not models:
-            print("❌ 未发现任何训练结果")
+            print("No training results were found")
             return {}
 
         # 2. 过滤模型
         if filter_methods:
             models = [m for m in models if any(method in m.name.lower() for method in filter_methods)]
-            print(f"过滤后: {len(models)} 个模型\n")
+            print(f"After filtering: {len(models)} Models\n")
 
         # 3. 评估每个模型
         all_results = {}
@@ -396,25 +395,25 @@ class UnifiedEvaluator:
                 results = self.evaluate_model(model_path)
                 all_results[model_path.name] = results
             except Exception as e:
-                print(f"❌ 评估 {model_path.name} 失败: {e}\n")
+                print(f"Evaluate {model_path.name} Failed: {e}\n")
 
         # 4. 保存结果
         print(f"\n{'='*80}")
-        print("💾 保存结果")
+        print("Save results")
         print(f"{'='*80}\n")
 
         output_file = "evaluation_results.json"
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(all_results, f, ensure_ascii=False, indent=2)
 
-        print(f"✓ 结果已保存: {output_file}")
+        print(f" The results have been saved.: {output_file}")
 
         # 5. 打印摘要
         print(f"\n{'='*80}")
-        print("📊 评估摘要")
+        print("Assessment Summary")
         print(f"{'='*80}\n")
 
-        print(f"{'模型':<30} {'验证Loss':<12} {'困惑度':<12} {'偏好准确率':<12}")
+        print(f"{'Model':<30} {'ValLoss':<12} {'Perplexity':<12} {'Preference for accuracy':<12}")
         print("-" * 66)
 
         for name, results in sorted(all_results.items()):
@@ -428,7 +427,7 @@ class UnifiedEvaluator:
 
             print(f"{name:<30} {eval_loss_str:<12} {ppl_str:<12} {pref_acc_str:<12}")
 
-        print(f"\n✅ 评估完成！结果保存在: {output_file}\n")
+        print(f"\nAssessment completed! The results are saved in: {output_file}\n")
 
         return all_results
 

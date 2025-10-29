@@ -210,6 +210,17 @@ def build_model_and_tokenizer(
 
     return model, tokenizer, bnb_config
 
+def get_precision_config():
+    if torch.cuda.is_available():
+        if torch.cuda.is_bf16_supported():
+            return {"bf16": True, "fp16": False}
+        else:
+            if hasattr(torch.cuda, 'is_fp16_supported') and torch.cuda.is_fp16_supported():
+                return {"bf16": False, "fp16": True}
+            else:
+                return {"bf16": False, "fp16": False}
+    else:
+        return {"bf16": False, "fp16": False}
 
 def train(
     method: str,
@@ -258,6 +269,7 @@ def train(
     m = method.lower()
 
     if m == "sft":
+        precision_config = get_precision_config()
         args = SFTConfig(
             output_dir=output_dir,
             eval_strategy="steps" if eval_ds else "no",
@@ -272,6 +284,7 @@ def train(
             save_total_limit=3,
             load_best_model_at_end=True if eval_ds else False,
             metric_for_best_model="eval_loss" if eval_ds else None,
+            **precision_config
         )
         # 对于 ultrafeedback_binarized，直接使用 chosen 列作为对话数据
         # 删除可能导致冲突的 messages 列

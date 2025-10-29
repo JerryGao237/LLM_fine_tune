@@ -120,7 +120,7 @@ def load_model(base_model_hint: str, adapter_dir: Optional[str], quant_mode: str
         return _MODEL_SLOT["tok"], _MODEL_SLOT["model"]
 
     unload_model()
-
+    print('base_path:', base_path)
     quant_kwargs = _maybe_quant_args(quant_mode)
     tok = AutoTokenizer.from_pretrained(base_path, trust_remote_code=True, local_files_only=True)
     base = AutoModelForCausalLM.from_pretrained(
@@ -130,6 +130,7 @@ def load_model(base_model_hint: str, adapter_dir: Optional[str], quant_mode: str
         low_cpu_mem_usage=True,
         **quant_kwargs
     )
+
     base.eval()
     model = PeftModel.from_pretrained(base, adapter_dir) if adapter_dir else base
 
@@ -255,6 +256,95 @@ def run_evaluation(methods: str, runs_dir: str, base_model_hint: str, skip_perpl
         return "\n".join(out)
     except Exception as e:
         return f"运行失败：{_fmt_exception(e)}"
+
+
+def format_sft_text(messages: List[Dict[str, str]]) -> str:
+    """将SFT格式的消息列表转换为文本"""
+    text_parts = []
+    for msg in messages:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        text_parts.append(f"{role}: {content}")
+    return "\n".join(text_parts)
+
+def save_to_parquet(data_text: str, output_path: str):
+    """
+    将不同格式的文本数据保存到parquet文件
+
+    Args:
+        data_text: 包含JSON格式数据的文本字符串
+        output_path: 输出的parquet文件路径
+    """
+    # 解析文本为JSON对象列表
+    try:
+        # 尝试解析为JSON数组
+        data_list = json.loads(data_text)
+        if not isinstance(data_list, list):
+            data_list = [data_list]
+    except json.JSONDecodeError:
+        # 如果不是有效的JSON，尝试逐行解析
+        lines = data_text.strip().split('\n')
+        data_list = []
+        for line in lines:
+            line = line.strip()
+            if line:
+                try:
+                    item = json.loads(line)
+                    data_list.append(item)
+                except json.JSONDecodeError:
+                    print(f"跳过无效的JSON行: {line}")
+                    continue
+
+    if not data_list:
+        raise ValueError("没有找到有效的JSON数据")
+
+    # 处理每个数据项
+    processed_data = []
+
+    for item in data_list:
+        if not isinstance(item, dict):
+            print(f"跳过非字典项: {item}")
+            continue
+
+        # 识别数据类型并标准化格式
+        if "messages" in item:
+            # SFT格式: {"messages": [{"role":"user", "content":"..."}, {"role":"assistant", "content":"..."}]}
+            processed_item = {
+                "type": "sft",
+                "messages": item["messages"],
+                "text": format_sft_text(item["messages"])
+            }
+
+        elif "chosen" in item and "rejected" in item:
+            # DPO/ORPO格式: {"prompt":"...", "chosen":"...", "rejected":"..."}
+            processed_item = {
+                "type": "dpo",
+                "prompt": item.get("prompt", ""),
+                "chosen": item.get("chosen", ""),
+                "rejected": item.get("rejected", ""),
+                "text": f"Prompt: {item.get('prompt', '')}\nChosen: {item.get('chosen', '')}\nRejected: {item.get('rejected', '')}"
+            }
+
+        elif "completion" in item and "label" in item:
+            # KTO格式: {"prompt":"...", "completion":"...", "label": 1或0}
+            processed_item = {
+                "type": "kto",
+                "prompt": item.get("prompt", ""),
+                "completion": item.get("completion", ""),
+                "label": item.get("label", 0),
+                "text": f"Prompt: {item.get('prompt', '')}\nCompletion: {item.get('completion', '')}\nLabel: {item.get('label', 0)}"
+            }
+        else:
+            print(f"无法识别的数据格式: {item}")
+            continue
+
+        processed_data.append(processed_item)
+
+    # 创建DataFrame
+    df = pd.DataFrame(processed_data)
+
+    # 保存为parquet文件
+    df.to_parquet(output_path, index=False, engine='pyarrow')
 
 # ------------------------- UI -------------------------
 custom_css = """
@@ -423,10 +513,10 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
         gr.Markdown("### 🎯 步骤 1：选择微调方法")
         
         method2 = gr.Radio(
-            choices=["sft","dpo","orpo","kto"], 
+            choices=["sft","dpo","orpo","kto", 'grpo'],
             value="sft", 
             label="🔬 微调算法",
-            info="SFT=监督微调 | DPO=直接偏好优化 | ORPO=奇偶比优化 | KTO=标签优化"
+            info="SFT=监督微调 | DPO=直接偏好优化 | ORPO=奇偶比优化 | KTO=标签优化 | GRPO=群相对策略优化"
         )
         
         gr.Markdown("### 🎯 步骤 2：配置训练参数")
@@ -460,7 +550,7 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
         💡 <b>数据格式提示：</b>
         <ul style="margin: 5px 0;">
         <li><b>SFT：</b> 对话格式 {"messages": [{"role":"user", "content":"..."}, {"role":"assistant", "content":"..."}]}</li>
-        <li><b>DPO/ORPO：</b> 偏好对 {"prompt":"...", "chosen":"...", "rejected":"..."}</li>
+        <li><b>DPO/ORPO/GRPO：</b> 偏好对 {"prompt":"...", "chosen":"...", "rejected":"..."}</li>
         <li><b>KTO：</b> 标注数据 {"prompt":"...", "completion":"...", "label": 1或0}</li>
         </ul>
         </div>
@@ -496,12 +586,17 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
             if m in ("dpo","orpo"):
                 return '[{"prompt":"写一段自我介绍","chosen":"大家好，我是…（清晰有条理）","rejected":"嗨…（含糊其辞）"}]'
             if m=="kto":
-                return '[{"prompt":"给我一个学习计划","completion":"周一到周五…","label":1}]'
+                return '[{"chosen":["给我一个学习计划","周一到周五…"],"rejected":["给我一个学习计划","随便学习…"]}]'
+            if m=="grpo":
+                return '''[{"prompt": "写一段自我介绍","chosen": [{"role": "user", "content": "写一段自我介绍"},{"role": "assistant", "content": "大家好，我是…（清晰有条理）"}],
+                        "rejected": [{"role": "user", "content": "写一段自我介绍"}, {"role": "assistant", "content": "嗨…（含糊其辞）"}]}]'''
             return "[]"
 
         method2.change(_sample_fill, inputs=[method2], outputs=[data_json_txt])
 
         def _run_quick_fit(method, base_hint, out_dir, qlora_v, data_txt):
+            print('Inputs: ', method, base_hint, out_dir, qlora_v, data_txt)
+
             import json, os, tempfile, subprocess
             try:
                 base_path = _resolve_local_model_path(base_hint)
@@ -520,9 +615,17 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
             except Exception as e:
                 return f"解析/写入训练数据失败：{e}"
 
+            if not os.path.exists(out_dir):
+                try:
+                    os.makedirs(out_dir, exist_ok=True)
+                except Exception as e:
+                    return f"创建输出目录失败：{e}"
+            data_path = f'{out_dir}/training_data.parquet'
+            save_to_parquet(data_txt, data_path)
+
             # --- 组装命令并调用后端 ---
             cmd = [
-                "python", "code/quick_fit.py",
+                "python", "code/SFT.py",
                 "--method", method,
                 "--model", base_path,
                 "--dataset", data_path,   # 传本地 JSON 路径
@@ -544,7 +647,6 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
                     os.remove(data_path)
                 except Exception:
                     pass
-
 
         btn_fit.click(
             _run_quick_fit,

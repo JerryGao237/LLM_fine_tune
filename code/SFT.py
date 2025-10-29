@@ -95,6 +95,8 @@ from trl import (
 def load_and_cast_dataset(method: str, dataset_name: str, split: str = "train") -> Dataset:
     """加载数据并进行基本列校验，不做重写转换，尽量沿用 TRL 内置处理。
     """
+    print("methods:", method)
+    print("DatasetName:", dataset_name)
     if dataset_name.endswith(".parquet"):
         # 如果是本地的 parquet 文件，直接加载
         ds = Dataset.from_parquet(dataset_name)
@@ -138,7 +140,6 @@ def load_and_cast_dataset(method: str, dataset_name: str, split: str = "train") 
         # 处理 GRPO 数据：格式化为适合奖励对齐的方法
         # 可能需要选择或删除一些无效样本，这取决于你的具体需求
         # ds = ds.select(range(5))
-
         ds = ds.map(
             lambda x: {
                 "chosen": x["chosen"][1]["content"],
@@ -213,6 +214,17 @@ def build_model_and_tokenizer(
 
     return model, tokenizer, bnb_config
 
+def get_precision_config():
+    if torch.cuda.is_available():
+        if torch.cuda.is_bf16_supported():
+            return {"bf16": True, "fp16": False}
+        else:
+            if hasattr(torch.cuda, 'is_fp16_supported') and torch.cuda.is_fp16_supported():
+                return {"bf16": False, "fp16": True}
+            else:
+                return {"bf16": False, "fp16": False}
+    else:
+        return {"bf16": False, "fp16": False}
 
 def train(
         method: str,
@@ -260,8 +272,9 @@ def train(
         )
 
     m = method.lower()
-
+    precision_config = get_precision_config()
     if m == "sft":
+        print("Choose SFTTrainer")
         args = SFTConfig(
             output_dir=output_dir,
             eval_strategy="steps" if eval_ds else "no",
@@ -276,6 +289,7 @@ def train(
             save_total_limit=3,
             load_best_model_at_end=True if eval_ds else False,
             metric_for_best_model="eval_loss" if eval_ds else None,
+            **precision_config
         )
         # 对于 ultrafeedback_binarized，直接使用 chosen 列作为对话数据
         # 删除可能导致冲突的 messages 列
@@ -296,6 +310,7 @@ def train(
         )
 
     elif m == "dpo":
+        print("Choose DPOTrainer")
         args = DPOConfig(
             output_dir=output_dir,
             eval_strategy="steps" if eval_ds else "no",
@@ -310,6 +325,7 @@ def train(
             save_total_limit=3,
             load_best_model_at_end=True if eval_ds else False,
             metric_for_best_model="eval_loss" if eval_ds else None,
+            **precision_config
         )
         # 对于 ultrafeedback_binarized，删除多余的 messages 列
         # DPOTrainer 只需要 prompt, chosen, rejected
@@ -328,6 +344,7 @@ def train(
         )
 
     elif m == "orpo":
+        print("Choose ORPOTrainer")
         args = ORPOConfig(
             output_dir=output_dir,
             eval_strategy="steps" if eval_ds else "no",
@@ -342,6 +359,7 @@ def train(
             save_total_limit=3,
             load_best_model_at_end=True if eval_ds else False,
             metric_for_best_model="eval_loss" if eval_ds else None,
+            **precision_config
         )
         # 对于 ultrafeedback_binarized，删除多余的 messages 列
         # ORPOTrainer 只需要 prompt, chosen, rejected
@@ -360,6 +378,7 @@ def train(
         )
 
     elif m == "kto":
+        print("Choose KTOTrainer")
         args = KTOConfig(
             output_dir=output_dir,
             eval_strategy="steps" if eval_ds else "no",
@@ -374,6 +393,7 @@ def train(
             save_total_limit=3,
             load_best_model_at_end=True if eval_ds else False,
             metric_for_best_model="eval_loss" if eval_ds else None,
+            **precision_config
         )
 
         trainer = KTOTrainer(
