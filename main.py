@@ -259,7 +259,12 @@ def run_evaluation(methods: str, runs_dir: str, base_model_hint: str, skip_perpl
 # ------------------------- UI -------------------------
 custom_css = """
 .gradio-container {
-    max-width: 1400px !important;
+    margin: 0 auto !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+.container {
+    max-width: 100% !important;
 }
 .main-title {
     text-align: center;
@@ -298,89 +303,86 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
     # ========== 推理展示 ==========
     with gr.Tab("💬 对话生成"):
         gr.Markdown("### 📝 步骤 1：配置模型")
-        
+
         with gr.Row():
-            with gr.Column(scale=2):
+            with gr.Column():
                 base_model_hint = gr.Textbox(
-                    value=DEFAULT_BASE_LOCAL, 
+                    value=DEFAULT_BASE_LOCAL,
                     label="🎯 基座模型路径",
                     placeholder="输入 model 子目录名或完整路径",
                     info="例如：Qwen2-0.5B-Instruct 或绝对路径",
                     lines=1
                 )
-            with gr.Column(scale=1):
+            with gr.Column():
                 quant_mode = gr.Radio(
-                    choices=["none", "8bit", "4bit"], 
-                    value="none", 
+                    choices=["none", "8bit", "4bit"],
+                    value="none",
                     label="💾 量化模式",
                     info="量化可减少显存占用"
                 )
-        
+
         gr.Markdown("### 📦 步骤 2：选择微调权重（可选）")
-        
-        with gr.Row():
-            with gr.Column(scale=2):
-                runs_dir = gr.Textbox(
-                    value=RUNS_DIR, 
-                    label="📁 权重目录",
-                    lines=1
-                )
-            with gr.Column(scale=1):
-                refresh_btn = gr.Button("🔄 刷新权重列表", variant="secondary", size="sm")
-        
+
+        runs_dir = gr.Textbox(
+            value=RUNS_DIR,
+            label="📁 权重目录",
+            lines=1
+        )
+        refresh_btn = gr.Button("🔄 刷新权重列表", variant="secondary", size="sm")
+
         adapter_path = gr.State(value="")
         adapter_label = gr.Dropdown(
-            choices=["(仅基座模型)"], 
-            value="(仅基座模型)", 
+            choices=["(仅基座模型)"],
+            value="(仅基座模型)",
             label="🎨 选择 LoRA 适配器",
             info="留空则使用基座模型"
         )
         refresh_info = gr.Markdown("")
 
         gr.Markdown("### ⚙️ 步骤 3：设置生成参数")
-        
+
         with gr.Accordion("🔧 高级参数设置", open=False):
             with gr.Row():
                 with gr.Column():
                     max_new_tokens = gr.Slider(
-                        minimum=16, maximum=2048, step=16, value=256, 
+                        minimum=16, maximum=2048, step=16, value=256,
                         label="📏 最大生成长度",
                         info="生成的最大token数"
                     )
                     temperature = gr.Slider(
-                        minimum=0.0, maximum=2.0, step=0.1, value=0.7, 
+                        minimum=0.0, maximum=2.0, step=0.1, value=0.7,
                         label="🌡️ 温度 (Temperature)",
                         info="控制生成的随机性，越高越随机"
                     )
                 with gr.Column():
                     top_p = gr.Slider(
-                        minimum=0.1, maximum=1.0, step=0.05, value=0.9, 
+                        minimum=0.1, maximum=1.0, step=0.05, value=0.9,
                         label="🎲 Top-p",
                         info="核采样参数，控制多样性"
                     )
                     seed = gr.Number(
-                        value=42, precision=0, 
+                        value=42, precision=0,
                         label="🌱 随机种子",
                         info="固定种子可复现结果"
                     )
-        
+
         gr.Markdown("### 💭 步骤 4：输入问题并生成")
-        
+
         user_text = gr.Textbox(
-            label="✍️ 输入内容（单轮对话）", 
-            lines=5, 
+            label="✍️ 输入内容（单轮对话）",
+            lines=5,
             placeholder="请输入您的问题，例如：\n• 给我3条学习编程的建议\n• 解释一下什么是深度学习\n• 写一首关于春天的诗",
             info="支持多行输入"
         )
-        
+
         go = gr.Button("🚀 开始生成", variant="primary", size="lg")
-        
+
         gr.Markdown("### 📤 生成结果")
-        
+
         with gr.Row():
-            with gr.Column(scale=4):
+            with gr.Column(scale=2):
                 out_text = gr.Textbox(
-                    label="💬 模型回复", 
+                    label="💬 模型回复",
                     lines=12,
                     show_copy_button=True
                 )
@@ -430,24 +432,24 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
         gr.Markdown("### 🎯 步骤 2：配置训练参数")
         
         with gr.Row():
-            with gr.Column():
+            with gr.Column(scale=2):
                 base_local = gr.Textbox(
                     value=DEFAULT_BASE_LOCAL, 
                     label="🎯 基座模型路径",
                     placeholder="例如：Qwen2-0.5B-Instruct",
                     info="从 model/ 目录选择或输入完整路径"
                 )
-            with gr.Column():
+            with gr.Column(scale=2):
                 out_name = gr.Textbox(
                     value="runs/quick_sft", 
                     label="💾 输出目录",
                     placeholder="例如：runs/my_model",
                     info="训练结果保存位置（建议在 runs/ 下）"
                 )
-        
+
         with gr.Row():
             use_qlora = gr.Checkbox(
-                value=True, 
+                value=True,
                 label="⚡ 启用 QLoRA (4-bit量化)",
                 info="大幅减少显存占用，推荐开启"
             )
@@ -587,13 +589,13 @@ with gr.Blocks(title="🤖 LLM 微调系统", css=custom_css, theme=gr.themes.So
                 )
             with gr.Column():
                 max_samples = gr.Slider(
-                    minimum=20, maximum=1000, value=100, step=20, 
+                    minimum=20, maximum=1000, value=100, step=20,
                     label="📊 评测样本数",
                     info="每个指标使用的测试样本数量"
                 )
             with gr.Column():
                 skip_pp = gr.Checkbox(
-                    value=True, 
+                    value=True,
                     label="⚡ 快速模式",
                     info="跳过困惑度计算以加快速度"
                 )
