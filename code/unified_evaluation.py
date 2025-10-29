@@ -402,7 +402,7 @@ class UnifiedEvaluator:
         print("Save results")
         print(f"{'='*80}\n")
 
-        output_file = "evaluation_results.json"
+        output_file = "./results/evaluation_results.json"
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(all_results, f, ensure_ascii=False, indent=2)
 

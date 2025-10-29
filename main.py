@@ -31,7 +31,7 @@ from peft import PeftModel
 MODEL_DIR   = os.environ.get("DEMO_MODEL_DIR", "model")
 RUNS_DIR    = os.environ.get("DEMO_RUNS_DIR", "runs")
 EVAL_SCRIPT = os.environ.get("DEMO_EVAL_SCRIPT", "code/unified_evaluation.py")
-EVAL_JSON   = os.environ.get("DEMO_EVAL_JSON", "evaluation_results.json")
+EVAL_JSON   = os.environ.get("DEMO_EVAL_JSON", "results/evaluation_results.json")
 DEFAULT_BASE_LOCAL = os.environ.get("DEMO_BASE_MODEL", "base")  # 表示使用 model/base
 
 # ------------------------- 工具函数 -------------------------
