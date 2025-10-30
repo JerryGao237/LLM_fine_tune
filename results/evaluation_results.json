@@ -9,7 +9,79 @@
     "total_steps": 3,
     "best_checkpoint": null,
     "training_time_seconds": 148.224,
-    "training_time_hours": 0.04117333333333333
+    "training_time_hours": 0.04117333333333333,
+    "perplexity": 9.718826155354956,
+    "test_loss": 2.274064845269574,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "来熟悉编程语言的基础知识。\n2. 学习编程的基本概念和原理：编程是一种解决问题的方式，掌握基本的概念和原理可以提高您的编程技能，并帮助您更好地解决实际问题。\n3. 实践编程：编程不仅仅是理论上的学习，而是需要实践去掌握。您可以尝试编写一些简单的程序来练习"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": "腻和高热量的食物。\n\n2. 适量运动：每天至少进行30分钟的中等强度有氧运动，如快走、慢跑、游泳等；每周进行两次以上力量训练，提高身体素质和肌肉量。\n\n3. 每天睡眠充足：保证每晚7-9小时的高质量"
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": "归和聚类等。"
+      }
+    ]
+  },
+  "quick_grpo": {
+    "model_name": "quick_grpo",
+    "model_path": "runs\\quick_grpo",
+    "initial_train_loss": null,
+    "final_train_loss": null,
+    "best_eval_loss": null,
+    "final_eval_loss": null,
+    "total_steps": 3,
+    "best_checkpoint": null,
+    "training_time_seconds": 8751.9164,
+    "training_time_hours": 2.431087888888889,
+    "perplexity": 9.74813630326765,
+    "test_loss": 2.27707611835577,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "Studio Code或IntelliJ IDEA。\n3. 练习编写代码，并不断实践。"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": ". 适量运动：定期进行体育锻炼，如散步、跑步等，以促进身体健康。\n\n3. 戒烟限酒：不要吸烟和饮酒，因为这些行为会对身体造成伤害。\n\n4. 充足睡眠：每天至少睡7-8小时，才能恢复体力，提高免疫力。\n\n5."
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": "语言处理等。机器学习可以通过算法来实现，这些算法可以帮助计算机从数据中学习模式并进行预测或分类。"
+      }
+    ]
+  },
+  "quick_kto": {
+    "model_name": "quick_kto",
+    "model_path": "runs\\quick_kto",
+    "initial_train_loss": null,
+    "final_train_loss": null,
+    "best_eval_loss": null,
+    "final_eval_loss": null,
+    "total_steps": 3,
+    "best_checkpoint": null,
+    "training_time_seconds": 107.4607,
+    "training_time_hours": 0.029850194444444447,
+    "perplexity": 9.778907251313079,
+    "test_loss": 2.280227744809557,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "础知识，并为你的职业生涯打下基础。\n2. 了解编程基础知识：在开始学习编程之前，确保你对基本的编程概念有深入的理解，例如变量、循环、条件语句和函数等。\n3. 实践编程项目：找到一个编程项目来实践所学的知识，然后完成它。这不仅可以帮助"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": "足够的营养素，保持身体健康；适量运动可以提高身体的抵抗力，增强心肺功能；充足的睡眠可以帮助我们恢复体力，减少疲劳感；避免吸烟和饮酒可以减少疾病风险。此外，合理安排个人时间和休息也很重要，以保证身心健康。"
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": "识别、自然语言处理等任务，并且可以应用于各种领域，包括医疗诊断、自动驾驶、智能客服、金融风控等。"
+      }
+    ]
   },
   "quick_orpo": {
     "model_name": "quick_orpo",
@@ -21,7 +93,23 @@
     "total_steps": 3,
     "best_checkpoint": null,
     "training_time_seconds": 28.5546,
-    "training_time_hours": 0.007931833333333334
+    "training_time_hours": 0.007931833333333334,
+    "perplexity": 9.712496921333784,
+    "test_loss": 2.273413398713925,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "函数、循环、条件语句等。\n3. 多实践，通过编写代码来提高自己的技能。可以尝试解决实际问题或者编写小型项目。"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": "营养素；\n\n2. 适量运动：坚持定期进行有氧运动，如跑步、游泳、瑜伽等；\n\n3. 穴位按摩：定时进行穴位按摩，有助于改善身体的血液循环，促进身体健康；\n\n4. 定期体检：定期进行体检，及时发现并治疗潜在疾病。"
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": "类等。在自然语言处理（NLP）领域，机器学习被用于分析文本数据，并从中提取出有意义的信息。"
+      }
+    ]
   },
   "quick_sft": {
     "model_name": "quick_sft",
@@ -33,6 +121,22 @@
     "total_steps": 3,
     "best_checkpoint": null,
     "training_time_seconds": 202.0299,
-    "training_time_hours": 0.056119416666666665
+    "training_time_hours": 0.056119416666666665,
+    "perplexity": 9.749599331346348,
+    "test_loss": 2.2772261899444777,
+    "generation_samples": [
+      {
+        "prompt": "给我3条学习编程的建议",
+        "response": "找到一个可以练习编程的地方，例如在线编程平台或社区，或者参加编程课程。\n3. 通过实践来提高自己的编程能力。这包括编写简单的程序、解决问题和尝试解决问题的方法。"
+      },
+      {
+        "prompt": "如何保持健康的生活方式？",
+        "response": "理安排饮食、作息时间和运动。此外，也要注意自己的心理健康，不要过度劳累或压力过大。"
+      },
+      {
+        "prompt": "解释一下什么是机器学习",
+        "response": "这些模式进行预测、分类和决策。它可以用于许多不同的领域，例如自然语言处理、图像识别、语音识别、推荐系统等。"
+      }
+    ]
   }
 }

@@ -215,17 +215,13 @@ def eval_to_dataframe(data: Dict[str, Any]) -> pd.DataFrame:
         rows.append({
             "model_name": name,
             "model_path": v.get("model_path"),
-            "preference_accuracy": v.get("preference_accuracy"),
-            "loss_margin": v.get("loss_margin"),
             "perplexity": v.get("perplexity"),
             "test_loss": v.get("test_loss"),
             "training_time_hours": v.get("training_time_hours"),
             "total_steps": v.get("total_steps"),
-            "best_eval_loss": v.get("best_eval_loss"),
-            "final_eval_loss": v.get("final_eval_loss"),
         })
     df = pd.DataFrame(rows)
-    sort_cols = [c for c in ["preference_accuracy", "loss_margin"] if c in df.columns]
+    sort_cols = [c for c in ["perplexity", "test_loss"] if c in df.columns]
     if sort_cols:
         df = df.sort_values(by=sort_cols, ascending=[False]*len(sort_cols), na_position="last")
     return df
@@ -245,6 +241,7 @@ def run_evaluation(methods: str, runs_dir: str, base_model_hint: str, skip_perpl
     parts = [p.strip() for p in (methods or "").split(",") if p.strip()]
     if parts:
         cmd += ["--methods"] + parts
+    skip_perplexity = False
     if skip_perplexity:
         cmd += ["--skip_perplexity"]
     try:

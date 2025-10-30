@@ -38,7 +38,7 @@ class UnifiedEvaluator:
         self,
         runs_dir: str = "runs",
         base_model: str = "Qwen/Qwen2-0.5B-Instruct",
-        dataset_name: str = "HuggingFaceH4/ultrafeedback_binarized",
+        dataset_name: str = "./HuggingFaceH4/ultrafeedback_binarized",
         max_samples: int = 100,
         skip_perplexity: bool = False,
         max_generation_samples: int = 3,
@@ -291,6 +291,24 @@ class UnifiedEvaluator:
         # 2. 加载模型
         if not self.skip_perplexity:
             try:
+
+                # 3. 加载测试数据集
+                print("\nLoad the test set...")
+                try:
+                    test_ds = load_dataset(self.dataset_name, split="test")
+                    print("   test")
+                except:
+                    try:
+                        test_ds = load_dataset(self.dataset_name)
+                        print(test_ds)
+                        print("   test_prefs")
+                        return {}
+                    except Exception as e:
+                        print(f"  Unable to load test set, error {e}")
+                        test_ds = None
+                        return {}
+
+
                 print("\nLoad Model...")
                 tokenizer = AutoTokenizer.from_pretrained(self.base_model)
                 if tokenizer.pad_token is None:
@@ -314,19 +332,6 @@ class UnifiedEvaluator:
                     print("  Complete Model")
 
                 model.eval()
-
-                # 3. 加载测试数据集
-                print("\nLoad the test set...")
-                try:
-                    test_ds = load_dataset(self.dataset_name, split="test_sft")
-                    print("  test_sft")
-                except:
-                    try:
-                        test_ds = load_dataset(self.dataset_name, split="test_prefs")
-                        print("   test_prefs")
-                    except:
-                        print("  Unable to load test set")
-                        test_ds = None
 
                 # 4. 计算 Perplexity
                 if test_ds:

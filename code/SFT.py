@@ -73,7 +73,7 @@ import os
 from typing import List, Dict, Optional
 
 import torch
-from datasets import load_dataset, Dataset, concatenate_datasets
+from datasets import load_dataset, Dataset, concatenate_datasets, Features, Value
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -299,7 +299,6 @@ def train(
             if eval_ds:
                 eval_ds = eval_ds.remove_columns(["messages", "rejected", "prompt"])
                 eval_ds = eval_ds.rename_column("chosen", "messages")
-
         trainer = SFTTrainer(
             model=model,
             args=args,
@@ -396,10 +395,31 @@ def train(
             **precision_config
         )
 
+        def to_text(x):
+            if x is None:
+                return ""
+            if isinstance(x, list):
+                # 如果总是单元素列表，也可以写 return x[0]
+                return "\n".join(str(i) for i in x)
+            return str(x)
+
+        def normalize(example):
+            example["prompt"] = to_text(example.get("prompt"))
+            example["completion"] = to_text(example.get("completion"))
+            # label 已经是 bool，无需改；若不是则转成 bool(example["label"])
+            return example
+
+        train_dataset = ds.map(normalize)
+        train_dataset = train_dataset.cast(Features({
+            "prompt": Value("string"),
+            "completion": Value("string"),
+            "label": Value("bool"),
+        }))
+     
         trainer = KTOTrainer(
             model=model,
             args=args,
-            train_dataset=ds,
+            train_dataset=train_dataset,
             eval_dataset=eval_ds,
             processing_class=tokenizer,
             peft_config=peft_config,
@@ -419,10 +439,10 @@ def train(
             score_rejected_list = kwargs.get("score_rejected")
 
             # 初始化 tokenizer（可以使用适当的预训练模型）
-            tokenizer = AutoTokenizer.from_pretrained("gpt2")
-            # tokenizer = AutoTokenizer.from_pretrained("/home/onehappy/gpt2_model")
+            # tokenizer = AutoTokenizer.from_pretrained("gpt2")
+            tokenizer = AutoTokenizer.from_pretrained("./model/base")
             tokenizer.pad_token = tokenizer.eos_token
-            model = AutoModelForCausalLM.from_pretrained("/home/onehappy/gpt2_model", output_hidden_states=True)
+            model = AutoModelForCausalLM.from_pretrained("./model/base", output_hidden_states=True)
             rewards = []
 
             # 遍历每个样本
